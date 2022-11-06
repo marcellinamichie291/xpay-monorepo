@@ -25,6 +25,8 @@ async function sleep(ms: number) {
     await new Promise(f => setTimeout(f, ms));
 }
 
+const WEB3_GAS_PRICE = "400000000000";
+
 // Get quote in USDC for amount of input token
 async function get0xQuoteFor(network: string, sell_contract: string, buy_contract: string, amount: string): Promise<any> {
     if (network == "mainnet") {
@@ -89,7 +91,7 @@ async function execute_usdc_swap_for(network: string, contract: string, amount_t
     if (to_sell != "MATIC") {
         const wmatic = new web3.eth.Contract(ERC20_ABI as any, to_sell);
         wmatic.options.gas = 300000;
-        wmatic.options.gasPrice = "100000000000";
+        wmatic.options.gasPrice = WEB3_GAS_PRICE;
         wmatic.options
         let contract_to_give_allowance_for = ZERO_EX_ADDRESS;
         if (use_our_contract) {
@@ -143,18 +145,23 @@ async function execute_usdc_swap_for(network: string, contract: string, amount_t
         console.log('submitting', amount)
         const out_contract = new web3.eth.Contract(ERC20_ABI as any, OUR_SWAPPER_CONTRACT);
         out_contract.options.gas = 300000
-        out_contract.options.gasPrice = "100000000000";
+        out_contract.options.gasPrice = WEB3_GAS_PRICE;
     
         let tx2 = await out_contract
             .methods.transfer(merchant_addr_maybe, (new bigDecimal(amount)).getValue())
             .send({ from: swapperAccount.address }); 
 
-        return tx
+        return {
+            swap: tx,
+            transfer: tx2
+        };
 
     } else {
 
         let tx = await web3.eth.sendTransaction(res.data);
-        return tx
+        return {
+            swap: tx
+        };
     }
 }
 
@@ -225,6 +232,8 @@ export async function poll_swaps_from_firebase(status: string) {
     let entries = await get_latest_wormhole_entries(FIRESTORE_DB, status);
     console.log(entries)
     for(var entry of entries) {
+        if (entry.chainId === 80001) continue;
+
         let merchantEntry;
         try {
             merchantEntry = await get_mechant_entry(FIRESTORE_DB, entry.merchantId)
@@ -269,21 +278,21 @@ export async function poll_swaps_from_firebase(status: string) {
             let amount = new bigDecimal(tx_info.token_amount)
             try {
 
-                let swap_tx = await execute_usdc_swap_for(POLYGON_NETWORK, tx_info.token_contract, amount, USE_OUR_CONTRACT, merchantEntry.merchantAddress)
+                let { swap, transfer } = await execute_usdc_swap_for(POLYGON_NETWORK, tx_info.token_contract, amount, USE_OUR_CONTRACT, merchantEntry.merchantAddress)
                 let collection = FIRESTORE_DB.collection(WORMHOLE_COLLECTION_NAME);
                 if (USE_OUR_CONTRACT) {
                     console.log(`sending USDC to a happy merchant ${merchantEntry.merchantAddress}`)
                     await collection.doc(entry.documentId as string).update({
                         status: "COMPLETE",
-                        swapTx: swap_tx.transactionHash,
-                        usdcTx: swap_tx.transactionHash,
+                        swapTx: swap.transactionHash,
+                        usdcTx: transfer.transactionHash,
                     })
                     console.log('SWAPPED and COMPLETED', tx_info.token_amount)
 
                 } else {
                     await collection.doc(entry.documentId as string).update({
                         status: "SWAPPED",
-                        swapTx: swap_tx.transactionHash,
+                        swapTx: swap.transactionHash,
                     })
                     console.log('SWAPPED', tx_info.token_amount)
 
@@ -328,7 +337,7 @@ export async function poll_swaps_from_firebase(status: string) {
             // now to send the fresh usdc to the happy little merchant
             const usdc = new web3.eth.Contract(ERC20_ABI as any, tx_info.token_contract);
             usdc.options.gas = 300000
-            usdc.options.gasPrice = "100000000000";
+            usdc.options.gasPrice = WEB3_GAS_PRICE;
 
             let usdc_human = (new bigDecimal(tx_info.token_amount)).divide(new bigDecimal(10 ** tx_info.token_decimals),4).getValue()
 
@@ -371,7 +380,7 @@ async function run_test_matic_transfer() {
     let wmatic_amount = (new bigDecimal("0.0031")).multiply(new bigDecimal(10 ** 18))
     const wmatic = new web3.eth.Contract(ERC20_ABI as any, CONTRACT_WMATIC);
     wmatic.options.gas = 300000
-    wmatic.options.gasPrice = "100000000000";
+    wmatic.options.gasPrice = WEB3_GAS_PRICE;
 
     let tx = await wmatic
         .methods.transfer(swapperAccount.address, wmatic_amount.getValue())

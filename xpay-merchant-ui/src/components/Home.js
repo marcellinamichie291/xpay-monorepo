@@ -1,9 +1,10 @@
-import { Button, Input, Typography } from "antd";
+import { Button, Input, Tabs, Typography } from "antd";
 import { useEffect, useState } from "react";
 import { FIREBASE_AUTH, FIRESTORE_DB } from "../config";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { nanoid } from "nanoid";
 import { signOut } from "firebase/auth";
+import TransactionsTable from "./TransactionsTable";
 
 const { Title, Paragraph, Text, Link } = Typography;
 
@@ -14,6 +15,7 @@ function Home(props) {
   const [merchantAddress, setMerchantAddress] = useState("");
   const [updateMerchantAddrLoading, setUpdateMerchantAddrLoading] =
     useState(false);
+  const [tabValue, setTabValue] = useState("1");
 
   useEffect(() => {
     getDoc(doc(FIRESTORE_DB, "test-merchant", props.user.uid))
@@ -114,6 +116,25 @@ function Home(props) {
     </div>
   ) : <></>;
 
+  const tabs = merchantId ? (
+    <Tabs
+      activeKey={tabValue}
+      onChange={setTabValue}
+      items={[
+        {
+          label: "Instructions",
+          key: '1',
+          children: merchantInstructions,
+        },
+        {
+          label: "Transactions",
+          key: '2',
+          children: <TransactionsTable address={merchantAddress} merchantId={merchantId} />,
+        }
+      ]}
+    />
+  ) : <></>;
+
   return (
     <div className="home-page">
       <div style={{ display: "flex", alignItems: "center", marginBottom: "15px" }}>
@@ -150,7 +171,7 @@ function Home(props) {
         </Button>
 
       </div>
-      {merchantInstructions}
+      {tabs}
     </div>
   );
 }

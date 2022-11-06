@@ -19,3 +19,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const FIREBASE_AUTH = getAuth(app);
 export const FIRESTORE_DB = getFirestore(app);
+
+// COVALENT
+export const COVALENT_API_KEY = "ckey_2df49266a766464382aa406dc6e";

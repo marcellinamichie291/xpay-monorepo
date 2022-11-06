@@ -18,6 +18,7 @@ export async function covalentGetTransaction(chain_id: number, tx_hash: string, 
     let response;
     try {
         response = await axios.get(url);
+        console.log("successfully queried covalent");
     } catch (e) {
         console.log("error querying covalent");
         throw e;
