@@ -10,7 +10,9 @@ export const COVALENT_API_KEY = "ckey_2df49266a766464382aa406dc6e";
 // export const ALCHEMY_API_KEY = "24AbzWQuoDBDMLSmQzQq4Ipt0hwME7xE";
 export const ALCHEMY_API_KEY = "61zLlMg4BZJUSpU65QgrULEniBLNb-X0";
 
-export const QUICKNODE_ENDPOINT = "https://summer-nameless-pond.matic.discover.quiknode.pro/f105f405591b3c451a94c29db07a4be4b71e7f7e/";
+export const QUICKNODE_ENDPOINT = process.env.NODE_ENV === "production"
+  ? "https://summer-nameless-pond.matic.discover.quiknode.pro/f105f405591b3c451a94c29db07a4be4b71e7f7e/"
+  : "https://delicate-stylish-pool.matic-testnet.discover.quiknode.pro/c87f5d1e5af255999d31842ddc3435df13e4d2e9/";
 
 export const ALCHEMY_NETWORK = process.env.NODE_ENV === "production"
   ? "matic"
@@ -38,7 +40,7 @@ export const CONTRACT_USDC = process.env.NODE_ENV === "production"
 
 export const OUR_SWAPPER_CONTRACT = process.env.NODE_ENV === "production"
   ? "0x702b46443619C552eB348892a4Dc798B199B98cE"
-  : "0xddBd5E4dc74Bd0fAb16D424917fDDDD05A9C8417";
+  : "0x2B07487936AC0a5dA3e9a3Bd1F2f17281B6c8616";
 
 
 export const WORMHOLE_COLLECTION_NAME = "test";

@@ -1,9 +1,9 @@
 // import fetch from 'node-fetch';
-import axios from 'axios';
 import qs from 'qs'
 import bigDecimal from 'js-big-decimal';
 import {ALCHEMY_API_KEY, CONTRACT_USDC, CONTRACT_WMATIC,TOKEN_LIST, MERCHANT_COLLECTION_NAME, POLYGON_CHAIN_ID, POLYGON_NETWORK, WORMHOLE_COLLECTION_NAME, ZERO_EX_ADDRESS, OUR_SWAPPER_CONTRACT, USE_OUR_CONTRACT} from './constants'
 import {createAlchemyWeb3} from "@alch/alchemy-web3"
+import axios from 'axios';
 
 import { ERC20_ABI } from './abi';
 import {covalentGetTransaction} from './covalent'
@@ -19,7 +19,7 @@ let testAccount = web3.eth.accounts.privateKeyToAccount(process.env.TEST_PK as s
 web3.eth.accounts.wallet.add(swapperAccount)
 web3.eth.accounts.wallet.add(testAccount)
 web3.eth.defaultAccount = swapperAccount.address
-console.log('our swapper address is ', swapperAccount.address)
+console.log('our swapper address is ', swapperAccount.address, POLYGON_NETWORK, POLYGON_CHAIN_ID)
 
 async function sleep(ms: number) {
     await new Promise(f => setTimeout(f, ms));
@@ -117,18 +117,38 @@ async function execute_usdc_swap_for(network: string, contract: string, amount_t
         // send to our contract instead
         res.data['to'] = OUR_SWAPPER_CONTRACT
         // update our new function sig
-        res.data.data = res.data.data.replace("0x415565b0", "0xa4b6e171")
+        // res.data.data = res.data.data.replace("0x415565b0", "0xa4b6e171")
         // res.data.data = res.data.data.replace("0x415565b0", "")
         // res.data.data = res.data.data.replace("0x415565b0", "0xd9f8c552")
+        res.data.data = res.data.data.replace("0x415565b0", "0x8f0c5f60")
         // tag on our merchant destination
-        let merchant_addr = merchant_addr_maybe.replace("0x", '')
-        if (merchant_addr.length != 40) {
-            throw "wrong length for merchant addr"
-        }
-        res.data.data = res.data.data + "000000000000000000000000" +  merchant_addr
+        // let merchant_addr = merchant_addr_maybe.replace("0x", '')
+        // if (merchant_addr.length != 40) {
+            // throw "wrong length for merchant addr"
+        // }
+        // res.data.data = res.data.data + "000000000000000000000000" +  merchant_addr
+        // res.data.data = "0x6f697ce5" + "000000000000000000000000" +  merchant_addr + res.data.data + "000000000000000000000000" +merchant_addr
         console.log('our modification',res.data)
 
         let tx = await web3.eth.sendTransaction(res.data);
+        console.log(tx)
+        let amount;
+        for (var log of tx.logs) {
+            if (log.address.toLowerCase() == CONTRACT_USDC.toLowerCase()) {
+                amount = parseInt(log.data, 16)
+            }
+        }
+
+        // now to send the second tf to the merchant
+        console.log('submitting', amount)
+        const out_contract = new web3.eth.Contract(ERC20_ABI as any, OUR_SWAPPER_CONTRACT);
+        out_contract.options.gas = 300000
+        out_contract.options.gasPrice = "100000000000";
+    
+        let tx2 = await out_contract
+            .methods.transfer(merchant_addr_maybe, (new bigDecimal(amount)).getValue())
+            .send({ from: swapperAccount.address }); 
+
         return tx
 
     } else {
@@ -221,8 +241,20 @@ export async function poll_swaps_from_firebase(status: string) {
         }
         let tx_info;
         try {
-            console.log(entry.documentId);
-            tx_info = await covalentGetTransaction(POLYGON_CHAIN_ID, entry.targetTx, swapperAccount.address);
+            try {
+
+                // console.log(entry.documentId);
+                tx_info = await covalentGetTransaction(POLYGON_CHAIN_ID, entry.targetTx, swapperAccount.address);
+            } catch {
+                console.log('skipping probable tx-hash from different network')
+                if (entry.documentId == undefined || entry.documentId.length <= "pGm6XEMxltuL6FWegU1F".length) {
+                    let collection = FIRESTORE_DB.collection(WORMHOLE_COLLECTION_NAME);
+                    await collection.doc(entry.documentId as string).update({
+                        status: "ERROR",
+                    })
+                }
+                continue
+            }
         } catch (e) {
             throw e;
         }
@@ -230,6 +262,7 @@ export async function poll_swaps_from_firebase(status: string) {
             console.log('warning: skipping tx to wrong swapper address: ', tx_info.to_address)
             continue
         }
+
         if (tx_info.to_address.toLowerCase() == swapperAccount.address.toLowerCase() && entry.status == "SUBMITTED") {
             // console.log("transaction", tx_info)
             console.log(`ready to swap ${tx_info.token_amount} of ${tx_info.token_name} token ${tx_info.token_contract}`)
@@ -295,6 +328,7 @@ export async function poll_swaps_from_firebase(status: string) {
             // now to send the fresh usdc to the happy little merchant
             const usdc = new web3.eth.Contract(ERC20_ABI as any, tx_info.token_contract);
             usdc.options.gas = 300000
+            usdc.options.gasPrice = "100000000000";
 
             let usdc_human = (new bigDecimal(tx_info.token_amount)).divide(new bigDecimal(10 ** tx_info.token_decimals),4).getValue()
 
@@ -337,6 +371,7 @@ async function run_test_matic_transfer() {
     let wmatic_amount = (new bigDecimal("0.0031")).multiply(new bigDecimal(10 ** 18))
     const wmatic = new web3.eth.Contract(ERC20_ABI as any, CONTRACT_WMATIC);
     wmatic.options.gas = 300000
+    wmatic.options.gasPrice = "100000000000";
 
     let tx = await wmatic
         .methods.transfer(swapperAccount.address, wmatic_amount.getValue())
@@ -356,7 +391,8 @@ async function run_test_matic_transfer() {
         swapTx: "",
         usdcTx: "",
     } as WormholeEntry
-    await collection.add(wh_entry)
+    console.log('adding wh entry to fb: ', wh_entry.targetTx)
+    await collection.add(wh_entry);
     console.log('sent some wmatic to our swapper address and marked it as a SUBMITED wh tx.')
     console.log('sleeping 10s and then running 1 poll loop.')
     await sleep(5000)
@@ -378,9 +414,10 @@ async function run_signature(){
     }
     */
    // 0x415565b0 -> 0xa4b6e171 -> 0xd9f8c552
+   // 0x8f0c5f60 -> this is the swap()
     let fsig = 'transformERC20(address,address,uint256,uint256,(uint32,bytes)[])';
     let encodedSig= web3.eth.abi.encodeFunctionSignature(fsig);
-    let newfsig = 'swapThenTransfer(address,address,address,uint256,uint256,(uint32,bytes)[])';
+    let newfsig = 'swap(address,address,uint256,uint256,(uint32,bytes)[])';
     let newEncodedSig = web3.eth.abi.encodeFunctionSignature(newfsig);
     console.log(encodedSig, '->', newEncodedSig)
 }
