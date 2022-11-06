@@ -1,6 +1,5 @@
 import axios from 'axios';
 import {COVALENT_API_KEY} from './constants'
-import bigDecimal from 'js-big-decimal';
 
 interface Transaction {
     tx_hash: string,
