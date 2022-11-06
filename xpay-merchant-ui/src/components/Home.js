@@ -9,6 +9,7 @@ const { Title, Paragraph, Text, Link } = Typography;
 
 function Home(props) {
   const [merchantId, setMerchantId] = useState(undefined);
+  const [lastTxHash, setLastTxHash] = useState("0xb98dd1916a0746debeae459f8d1b716fa3d013fe89a6c9707d255106595270ec");
   const [genMerchIdLoading, setGenMerchIdLoading] = useState(false);
   const [merchantAddress, setMerchantAddress] = useState("");
   const [updateMerchantAddrLoading, setUpdateMerchantAddrLoading] =
@@ -136,6 +137,18 @@ function Home(props) {
         >
           Update
         </Button>
+        <Button
+          size="large"
+          type="primary"
+          onClick={
+            window.open('https://dashboard.tenderly.co/tx/polygon/' + lastTxHash,'_blank')
+          }
+          // onClick={updateAddr}
+          // loading={updateMerchantAddrLoading}
+        >
+          Debug with Tenderly
+        </Button>
+
       </div>
       {merchantInstructions}
     </div>
