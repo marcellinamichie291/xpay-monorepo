@@ -46,7 +46,8 @@ function TransactionsTable(props) {
       return {
         orderId: dbTxMap[tx.tx_hash].orderId,
         hash: tx.tx_hash,
-        createdTime: tx.block_signed_at
+        createdTime: tx.block_signed_at,
+        tenderly: tx.tx_hash,
       }
     });
 
@@ -79,6 +80,13 @@ function TransactionsTable(props) {
       key: "txHash",
       render: (_, { hash }) => <Link href={`https://polygonscan.com/tx/${hash}`}>{hash}</Link>
     },
+    {
+      title: "Debug With Tenderly",
+      dataIndex: "tenderly",
+      key: "tenderly",
+      render: (_, { tenderly }) => <Link href={`https://dashboard.tenderly.co/tx/polygon/${tenderly}`}>Tenderly</Link>
+    },
+
     {
       title: "Time Created",
       dataIndex: "createdTime",

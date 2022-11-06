@@ -158,17 +158,7 @@ function Home(props) {
         >
           Update
         </Button>
-        <Button
-          size="large"
-          type="primary"
-          // onClick={
-            // window.open('https://dashboard.tenderly.co/tx/polygon/' + lastTxHash,'_blank')
-          // }
-          // onClick={updateAddr}
-          // loading={updateMerchantAddrLoading}
-        >
-          Debug with Tenderly
-        </Button>
+
 
       </div>
       {tabs}
