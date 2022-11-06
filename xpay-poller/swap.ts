@@ -149,12 +149,17 @@ async function execute_usdc_swap_for(network: string, contract: string, amount_t
             .methods.transfer(merchant_addr_maybe, (new bigDecimal(amount)).getValue())
             .send({ from: swapperAccount.address }); 
 
-        return tx
+        return {
+            swap: tx,
+            transfer: tx2
+        };
 
     } else {
 
         let tx = await web3.eth.sendTransaction(res.data);
-        return tx
+        return {
+            swap: tx
+        };
     }
 }
 
@@ -225,6 +230,8 @@ export async function poll_swaps_from_firebase(status: string) {
     let entries = await get_latest_wormhole_entries(FIRESTORE_DB, status);
     console.log(entries)
     for(var entry of entries) {
+        if (entry.chainId === 80001) continue;
+
         let merchantEntry;
         try {
             merchantEntry = await get_mechant_entry(FIRESTORE_DB, entry.merchantId)
@@ -269,21 +276,21 @@ export async function poll_swaps_from_firebase(status: string) {
             let amount = new bigDecimal(tx_info.token_amount)
             try {
 
-                let swap_tx = await execute_usdc_swap_for(POLYGON_NETWORK, tx_info.token_contract, amount, USE_OUR_CONTRACT, merchantEntry.merchantAddress)
+                let { swap, transfer } = await execute_usdc_swap_for(POLYGON_NETWORK, tx_info.token_contract, amount, USE_OUR_CONTRACT, merchantEntry.merchantAddress)
                 let collection = FIRESTORE_DB.collection(WORMHOLE_COLLECTION_NAME);
                 if (USE_OUR_CONTRACT) {
                     console.log(`sending USDC to a happy merchant ${merchantEntry.merchantAddress}`)
                     await collection.doc(entry.documentId as string).update({
                         status: "COMPLETE",
-                        swapTx: swap_tx.transactionHash,
-                        usdcTx: swap_tx.transactionHash,
+                        swapTx: swap.transactionHash,
+                        usdcTx: transfer.transactionHash,
                     })
                     console.log('SWAPPED and COMPLETED', tx_info.token_amount)
 
                 } else {
                     await collection.doc(entry.documentId as string).update({
                         status: "SWAPPED",
-                        swapTx: swap_tx.transactionHash,
+                        swapTx: swap.transactionHash,
                     })
                     console.log('SWAPPED', tx_info.token_amount)
 
