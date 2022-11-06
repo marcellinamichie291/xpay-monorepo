@@ -1,0 +1,7 @@
+private/
+node_modules/
+.env
+abi.js
+covalent.js
+swap.js
+constants.js
