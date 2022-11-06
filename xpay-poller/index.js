@@ -27,10 +27,24 @@ class FixedGasPriceProvider extends providers.JsonRpcProvider {
 const PROVIDER = new FixedGasPriceProvider(constants.QUICKNODE_ENDPOINT, 400000);
 const COLLECTION = constants.FIRESTORE_DB.collection(constants.WORMHOLE_COLLECTION_NAME);
 
+run();
+
+async function sleep(delay) {
+  await new Promise ((resolve) => setTimeout(resolve, delay));
+}
+
 // call the polling functions
-pollCreated();
-pollSigned();
-pollSubmitted();
+async function run() {
+  while (true) {
+    await pollCreated();
+    console.log("polled created");
+    await pollSigned();
+    console.log("polled signed");
+    await pollSubmitted();
+    console.log("polled submitted");
+    await sleep(5000);
+  }
+}
 
 // poll firebase for "CREATED" transactions
 // query guardians for status
@@ -109,12 +123,7 @@ async function pollSigned() {
 // if the tx is finalized, then perform 0x swap to USDC
 // add swap tx hash to db and update status to "SWAPPED"
 async function pollSubmitted() {
-  try {
-    await swap.poll_swaps_from_firebase("SUBMITTED")
-  } catch (e) {
-    console.error(e);
-    console.error("couldn't poll submitted transactions")
-  }
+  await swap.poll_swaps_from_firebase("SUBMITTED").catch(console.error);
 }
 
 // poll firebase for "SWAPPED" transactions
