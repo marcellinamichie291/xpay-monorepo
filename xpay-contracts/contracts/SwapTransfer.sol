@@ -27,37 +27,27 @@ interface ITransformERC20Feature {
     ) external payable returns (uint256 outputTokenAmount);
 }
 
-interface ISwapTransfer {
-    function swapThenTransfer(
-        IERC20 inputToken,
-        IERC20 outputToken,
-        uint256 inputTokenAmount,
-        uint256 minOutputTokenAmount,
-        Transformation[] memory transformations,
-        address recipient
-    ) external payable;
-}
-
 contract SwapTransfer {
     address public swapProxy;
+    address payable public outputToken;
     address payable public owner;
 
     event Swap(uint amount, uint when);
 
-    constructor(address _swapProxy) payable {
+    constructor(address _swapProxy, address _outputToken) payable {
         swapProxy = _swapProxy;
+        outputToken = payable(_outputToken);
         owner = payable(msg.sender);
     }
 
-    function swapThenTransfer(
+    function swap(
         IERC20 inputToken,
-        IERC20 outputToken,
+        IERC20 outputTokenFromData,
         uint256 inputTokenAmount,
         uint256 minOutputTokenAmount,
-        Transformation[] memory transformations,
-        address recipient
-    ) public {
-        uint256 outputTokenAmount;
+        Transformation[] memory transformations
+    ) public returns (uint256 outputTokenAmount) {
+        require(address(outputToken) == address(outputTokenFromData), "invalid output token");
         ITransformERC20Feature swap;
 
         // transfer inputToken from sender into this contract
@@ -68,10 +58,18 @@ contract SwapTransfer {
 
         // do the swap
         swap = ITransformERC20Feature(swapProxy);
-        outputTokenAmount = swap.transformERC20(inputToken, outputToken, inputTokenAmount, minOutputTokenAmount, transformations);
+        outputTokenAmount = swap.transformERC20(inputToken, outputTokenFromData, inputTokenAmount, minOutputTokenAmount, transformations);
         emit Swap(outputTokenAmount, block.timestamp);
+        return outputTokenAmount;
+    }
 
+    function transfer(
+        address recipient,
+        uint256 outputTokenAmount
+    ) public payable {
         // transfer outputToken to the final recipient
-        outputToken.transfer(recipient, outputTokenAmount);
+        // outputToken.approve(address(this), outputTokenAmount);
+        // outputToken.transferFrom(address(this), recipient, outputTokenAmount);
+        IERC20(outputToken).transfer(recipient, outputTokenAmount);
     }
 }
