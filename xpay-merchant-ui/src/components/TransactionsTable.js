@@ -50,6 +50,13 @@ function TransactionsTable(props) {
       }
     });
 
+    // sort by createdTime
+    validCovalentTxs.sort((a, b) => {
+      const aDate = new Date(a.createdTime);
+      const bDate = new Date(b.createdTime);
+      return bDate.getTime() - aDate.getTime();
+    });
+
     // set the datasource
     setDataSource(validCovalentTxs);
   }

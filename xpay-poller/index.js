@@ -18,7 +18,7 @@ class FixedGasPriceProvider extends providers.JsonRpcProvider {
 
   async getFeeData() {
     return {
-      maxFeePerGas: BigNumber.from(70000000000),
+      maxFeePerGas: BigNumber.from(300000000000),
       maxPriorityFeePerGas: BigNumber.from(30000000000)
     }
   }
